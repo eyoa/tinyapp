@@ -16,5 +16,8 @@
   "bugs": {
     "url": "https://github.com/eyoa/tinyapp/issues"
   },
-  "homepage": "https://github.com/eyoa/tinyapp#readme"
+  "homepage": "https://github.com/eyoa/tinyapp#readme",
+  "dependencies": {
+    "express": "^4.17.1"
+  }
 }
