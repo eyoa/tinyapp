@@ -1,6 +1,8 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const morgan = require('morgan');
+var cookieParser = require('cookie-parser')
+
 const app = express();
 const PORT = 8080;
 
@@ -77,7 +79,10 @@ app.post("/urls/:shortURL/delete", (req, res) => {
 
 });
 
-
+app.post("/login", (req, res) => {
+  res.cookie("username", req.body.username);
+  res.redirect('/urls');
+});
 
 app.listen(PORT, () => {
   console.log(`Server is listening on port ${PORT}`);
