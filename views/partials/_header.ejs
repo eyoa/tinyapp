@@ -13,12 +13,10 @@
     <div>
  
         <% if (user === undefined) { %>
-          <form method="GET" action="/urls/register">
-            <button class="btn btn-primary" >Register</button>
-          </form>
-          <form method="GET" action="/urls/login">
-            <button class="btn btn-primary" >Login</button>
-          </form>
+          <div class="navbar-nav">
+            <a class="nav-item nav-link" href="/urls/register">Register</a>
+            <a class="nav-item nav-link" href="/urls/login">Login</a>
+          </div>
         <% } else { %>
           <form method="POST" action="/logout">
             <label for="display user email">Logged in as: <%= user.email %></label>
