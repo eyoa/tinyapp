@@ -97,11 +97,14 @@ app.post("/urls/register", (req, res) => {
     res.sendStatus(400);
     res.end();
   }
-
-  console.log("This shouldn't run");
   users[id] = {id, email, pass};
   res.cookie("user_id", id);
   res.redirect('/urls');
+});
+
+app.get("/urls/login", (req, res) => {
+  const templateVars = {"user": users[req.cookies["user_id"]]};
+  res.render("urls_login", templateVars);
 });
 
 app.get("/u/:shortURL", (req, res) => {
