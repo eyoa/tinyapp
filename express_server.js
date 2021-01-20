@@ -43,6 +43,19 @@ const generateRandomString = function() {
 };
 
 
+const nonValidReg = function(newMail, pass) {
+  if (!newMail || !pass) {
+    console.log("empty");
+    return true;
+  }
+  for (let user in users) {
+    if (users[user]["email"] === newMail) {
+      return true;
+    }
+  }
+  return false;
+};
+
 
 
 app.get("/", (req, res) => {
@@ -80,10 +93,14 @@ app.post("/urls/register", (req, res) => {
   let email = req.body.email;
   let pass = req.body.password;
 
-  users[id] = {id, email, pass};
-  
-  res.cookie("user_id", id);
+  if (nonValidReg(email, pass)) {
+    res.sendStatus(400);
+    res.end();
+  }
 
+  console.log("This shouldn't run");
+  users[id] = {id, email, pass};
+  res.cookie("user_id", id);
   res.redirect('/urls');
 });
 
