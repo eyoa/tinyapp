@@ -17,6 +17,19 @@ const urlDatabase = {
   "9sm5xK": "http://www.google.com"
 };
 
+const users ={
+  "spongebob": {
+    id: "spongebob",
+    email: "pineapple@underthesea.com",
+    password: "yellow"
+  },
+  "user2RandomID": {
+    id: "user2RandomID",
+    email: "snacks@latenight.com",
+    password: "cookies"
+  } 
+}
+
 
 const generateRandomString = function() {
   const result = [];
@@ -59,6 +72,11 @@ app.post("/urls", (req, res) => {
   res.redirect(`/urls/${newStr}`);
 });
 
+app.get("/urls/register", (req, res) => {
+  const templateVars = {username: req.cookies["username"]};
+  res.render('urls_register', templateVars);
+});
+
 app.get("/u/:shortURL", (req, res) => {
   const longURL = urlDatabase[req.params.shortURL];
   res.redirect(longURL);
@@ -73,6 +91,7 @@ app.get("/urls/:shortURL", (req, res) => {
   };
   res.render("urls_show", templateVars);
 });
+
 
 app.post("/urls/:shortURL", (req, res) => {
   urlDatabase[req.params.shortURL] = req.body.editURL;
@@ -94,6 +113,9 @@ app.post("/logout", (req, res) => {
   res.clearCookie("username");
   res.redirect('/urls');
 });
+
+
+
 
 app.listen(PORT, () => {
   console.log(`Server is listening on port ${PORT}`);
