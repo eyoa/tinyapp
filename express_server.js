@@ -56,6 +56,21 @@ const nonValidReg = function(newMail, pass) {
   return false;
 };
 
+const isUser = function(mail, pass) {
+  if (!mail || !pass) {
+    console.log("empty login details");
+    return false;
+  }
+  if (users[mail]) {
+    if (users[mail].password === pass) {
+      console.log('correct login');
+      return true;
+    }
+  }
+  console.log("not valid user");
+  return false;
+};
+
 
 
 app.get("/", (req, res) => {
@@ -68,7 +83,6 @@ app.get("/urls.json", (req, res) => {
 
 app.get("/urls", (req, res) => {
   const templateVars = {urls: urlDatabase, "user": users[req.cookies["user_id"]]};
-  console.log(templateVars);
   res.render("urls_index", templateVars);
 });
 
@@ -89,15 +103,15 @@ app.get("/urls/register", (req, res) => {
 });
 
 app.post("/urls/register", (req, res) => {
-  let id = generateRandomString();
+  let id = req.body.email;
   let email = req.body.email;
-  let pass = req.body.password;
+  let password = req.body.password;
 
-  if (nonValidReg(email, pass)) {
+  if (nonValidReg(email, password)) {
     res.sendStatus(400);
     res.end();
   }
-  users[id] = {id, email, pass};
+  users[id] = {id, email, password};
   res.cookie("user_id", id);
   res.redirect('/urls');
 });
@@ -105,6 +119,16 @@ app.post("/urls/register", (req, res) => {
 app.get("/urls/login", (req, res) => {
   const templateVars = {"user": users[req.cookies["user_id"]]};
   res.render("urls_login", templateVars);
+});
+
+app.post("/urls/login", (req, res) => {
+  let id = req.body.email;
+  let pass = req.body.password;
+  if (isUser(id, pass)) {
+    res.cookie("user_id", id);
+    res.redirect('/urls');
+  }
+  res.sendStatus(403);
 });
 
 app.get("/u/:shortURL", (req, res) => {
@@ -132,11 +156,6 @@ app.post("/urls/:shortURL/delete", (req, res) => {
   delete urlDatabase[req.params.shortURL];
   res.redirect(`/urls/`);
 
-});
-
-app.post("/login", (req, res) => {
-  res.cookie("username", req.body.username);
-  res.redirect('/urls');
 });
 
 app.post("/logout", (req, res) => {
