@@ -13,8 +13,8 @@ app.use(cookieParser());
 
 
 const urlDatabase = {
-  "b2xVn2": "http://www.lighthouselabs.ca",
-  "9sm5xK": "http://www.google.com"
+  b6UTxQ: { longURL: "https://www.tsn.ca", userID: "user2RandomID" },
+  i3BoGr: { longURL: "https://www.google.ca", userID: "spongebob" }
 };
 
 const users = {
@@ -87,8 +87,13 @@ app.get("/urls", (req, res) => {
 });
 
 app.get("/urls/new", (req, res) =>{
-  const templateVars = {"user": users[req.cookies["user_id"]]};
-  res.render("urls_new", templateVars);
+  if (req.cookies["user_id"]){
+    const templateVars = {"user": users[req.cookies["user_id"]]};
+    res.render("urls_new", templateVars);
+    res.end();
+  }
+  
+  res.redirect('/urls/login');
 });
 
 app.post("/urls", (req, res) => {
@@ -127,6 +132,7 @@ app.post("/urls/login", (req, res) => {
   if (isUser(id, pass)) {
     res.cookie("user_id", id);
     res.redirect('/urls');
+    res.end();
   }
   res.sendStatus(403);
 });
