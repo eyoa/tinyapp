@@ -20,16 +20,16 @@ app.use(cookieSession({
 }));
 
 const urlDatabase = {
-  b6UTxQ: { longURL: "https://www.tsn.ca", userID: "user2RandomID" },
-  i3BoGr: { longURL: "https://www.google.ca", userID: "spongebob" }
+  b6UTxQ: { longURL: "https://www.tsn.ca", userID: "user2RandomID", visits: 0 },
+  i3BoGr: { longURL: "https://www.google.ca", userID: "spongebob", visits: 0 }
 };
 
 // example testing userDb don't have actual hashed pass
 const users = {
   "spongebob": {
     id: "spongebob",
-    email: "pineapple@underthesea.com",
-    hashedPassword: "yellow"
+    email: "test@testing.com",
+    hashedPassword: "test"
   },
   "user2RandomID": {
     id: "user2RandomID",
@@ -53,19 +53,16 @@ const generateRandomString = function() {
   return result.join('');
 };
 
+
 // checks if the the email already exists
-const notValidReg = function(newMail, pass) {
+const isValidReg = function(newMail, pass) {
   if (!newMail || !pass) {
-    return true;
+    return false;
   }
-  
-  console.log(`getUserBy email is returning ${getUserByEmail(newMail, users)}`);
   if (getUserByEmail(newMail, users)) {
-    console.log("user exists");
-    return true;
+    return false;
   }
-  console.log("returning true");
-  return false;
+  return true;
 };
 
 // checks for user authentication
@@ -80,7 +77,6 @@ const getUser = function(mail, pass) {
       }
     }
   }
-  console.log("not valid user");
   return false;
 };
 
@@ -116,13 +112,17 @@ const isURLDb = function(shortURL) {
   return false;
 };
 
-
+const getDate = function() {
+  const date = new Date();
+  let result = `${date.getMonth() + 1}-${date.getDate()}-${date.getFullYear()}`;
+  return result;
+};
 
 
 
 // route for Home page
 app.get("/", (req, res) => {
-  if (!req.session.user_id) {
+  if (!req.session.userId) {
     res.redirect('/urls/login');
   }
   res.redirect('/urls');
@@ -132,11 +132,11 @@ app.get("/", (req, res) => {
 app.get("/urls", (req, res) => {
   let error = null;
   //If not logged in display message to log in or register
-  if (!req.session.user_id) {
+  if (!req.session.userId) {
     error = "Please login";
   }
-  let selectUrls = urlsForUser(req.session.user_id);
-  const templateVars = {urls: selectUrls, "user": users[req.session.user_id], error};
+  let selectUrls = urlsForUser(req.session.userId);
+  const templateVars = {urls: selectUrls, "user": users[req.session.userId], error};
   res.render("urls_index", templateVars);
 });
 
@@ -144,11 +144,11 @@ app.get("/urls", (req, res) => {
 // route to page that can create new tiny URLS
 app.get("/urls/new", (req, res) =>{
   let error = null;
-  if (!req.session.user_id) {
+  if (!req.session.userId) {
     error = "Please login";
   }
-  if (req.session.user_id) {
-    const templateVars = {"user": users[req.session.user_id], error};
+  if (req.session.userId) {
+    const templateVars = {"user": users[req.session.userId], error};
     res.render("urls_new", templateVars);
     return;
   }
@@ -158,17 +158,33 @@ app.get("/urls/new", (req, res) =>{
 
 // route that generates new tiny URLS
 app.post("/urls", (req, res) => {
+  let error = null;
+  let longURL = req.body.longURL;
+  
+  // show error if entry is blank
+  if (!longURL) {
+    error = "URL cannot be blank";
+    const templateVars = {"user": users[req.session.userId], error};
+    res.render("urls_new", templateVars);
+  }
+  
   const newStr = generateRandomString();
-  let newUrlObj = {longURL: req.body.longURL, userID: req.session.user_id};
+  const date = getDate();
+  const visits = 0;
+  let newUrlObj = {longURL, userID: req.session.userId, date, visits};
   urlDatabase[newStr] = newUrlObj;
   res.redirect(`/urls/${newStr}`);
 });
 
+
+
+
+
 // route shows the page to register new user
-let error = null;
 app.get("/urls/register", (req, res) => {
-  if (!req.session.user_id) {
-    const templateVars = {"user": users[req.session.user_id], error};
+  let error = null;
+  if (!req.session.userId) {
+    const templateVars = {"user": users[req.session.userId], error};
     res.render('urls_register', templateVars);
     return;
   }
@@ -177,32 +193,32 @@ app.get("/urls/register", (req, res) => {
 
 // route that registers new user
 app.post("/urls/register", (req, res) => {
-
+  let error = null;
   let id = generateRandomString();
   let email = req.body.email;
   let password = req.body.password;
   let hashedPassword = bcrypt.hashSync(password, 10);
 
-  if (notValidReg(email, hashedPassword)) {
-    error = "Cannot register this email and password";
-    const templateVars = {"user": users[req.session.user_id], error};
-    res.render("urls_register", templateVars);
+  if (!email || !password) {
+    error = "E-mail and password cannot be blank";
+  } else if (isValidReg(email, hashedPassword)) {
+    users[id] = {id, email, hashedPassword};
+    req.session.userId = id;
+    res.redirect('/urls');
     return;
+  } else {
+    error = "This E-mail already registered. Please Login";
   }
-  users[id] = {id, email, hashedPassword};
-  req.session.user_id = id;
 
-  console.log(`the cookie should be ${id} and peek at users object`);
-  console.log(users);
-  
-  res.redirect('/urls');
+  const templateVars = {"user": users[req.session.userId], error};
+  res.render("urls_register", templateVars);
 });
 
 // route that shows the page to log in
 app.get("/urls/login", (req, res) => {
-  if (!req.session.user_id) {
+  if (!req.session.userId) {
     let error = null;
-    const templateVars = {"user": users[req.session.user_id], error};
+    const templateVars = {"user": users[req.session.userId], error};
     res.render("urls_login", templateVars);
     return;
   }
@@ -211,21 +227,18 @@ app.get("/urls/login", (req, res) => {
 
 // route that checks and processes the login and sets cookie
 app.post("/urls/login", (req, res) => {
-  console.log(` peek at users object`);
-  console.log(users);
   let error = null;
   let email = req.body.email;
   let pass = req.body.password;
   let isUser = getUser(email, pass);
-  console.log(isUser);
   if (isUser) {
     // set session cookie and redirect
-    req.session.user_id = isUser;
+    req.session.userId = isUser;
     res.redirect('/urls');
     return;
   } else {
     error = "Incorrect credentials";
-    const templateVars = {"user": users[req.session.user_id], error};
+    const templateVars = {"user": users[req.session.userId], error};
     res.render("urls_login", templateVars);
   
   }
@@ -234,13 +247,15 @@ app.post("/urls/login", (req, res) => {
 
 // route that redirects using the short url to the long url
 app.get("/u/:shortURL", (req, res) => {
-  if (isURLDb(req.params.shortURL)) {
-    let longURL = urlDatabase[req.params.shortURL].longURL;
+  let shortURL = req.params.shortURL;
+  if (isURLDb(shortURL)) {
+    let longURL = urlDatabase[shortURL].longURL;
+    urlDatabase[shortURL].visits ++;
     res.redirect(longURL);
     return;
   } else {
     let error = "Short URL doesn't exist";
-    const templateVars = {"user": users[req.session.user_id], error};
+    const templateVars = {"user": users[req.session.userId], error};
     res.render('urls_index', templateVars);
   }
 });
@@ -250,19 +265,21 @@ app.get("/urls/:shortURL", (req, res) => {
   let error = null;
   let shortURL = req.params.shortURL;
   let longURL = '';
-  if (!req.session.user_id) {
+  if (!req.session.userId) {
     error = "Please login";
   } else if (!isURLDb(shortURL)) {   //case there is no such short URL
     error = "Invalid short URL";
-  } else if (!isOwnURL(req.session.user_id, req.params.shortURL)) {   // case the short URL belongs to another user
+  } else if (!isOwnURL(req.session.userId, req.params.shortURL)) {   // case the short URL belongs to another user
     error = "This URL has a different owner";
   } else {
     longURL = urlDatabase[req.params.shortURL].longURL;
   }
   const templateVars = {
-    shortURL: req.params.shortURL,
-    longURL: longURL,
-    "user": users[req.session.user_id],
+    "user": users[req.session.userId],
+    date: urlDatabase[shortURL].date,
+    visits: urlDatabase[shortURL].visits,
+    shortURL,
+    longURL,
     error
   };
   res.render("urls_show", templateVars);
@@ -272,8 +289,7 @@ app.get("/urls/:shortURL", (req, res) => {
 // route to process the edit urls (only the specific user can edit)
 app.post("/urls/:shortURL", (req, res) => {
   //if the cookie matches the userID
-  console.log(`Is it getting the short URL? ${req.params.shortURL}`);
-  if (isOwnURL(req.session.user_id, req.params.shortURL)) {
+  if (isOwnURL(req.session.userId, req.params.shortURL)) {
     urlDatabase[req.params.shortURL].longURL = req.body.editURL;
   }
 
@@ -284,14 +300,14 @@ app.post("/urls/:shortURL", (req, res) => {
 app.post("/urls/:shortURL/delete", (req, res) => {
   let error = null;
   //if the cookie matches the userID
-  if (isOwnURL(req.session.user_id, req.params.shortURL)) {
+  if (isOwnURL(req.session.userId, req.params.shortURL)) {
     delete urlDatabase[req.params.shortURL];
   } else {
-    error = "Not authorized to delete URL"
-    if (!req.session.user_id){
+    error = "Not authorized to delete URL";
+    if (!req.session.userId) {
       error = "Please login";
     }
-    const templateVars = {"user": users[req.session.user_id], error};
+    const templateVars = {"user": users[req.session.userId], error};
     res.render('urls_index', templateVars);
     return;
   }
