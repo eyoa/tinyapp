@@ -2,6 +2,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const morgan = require('morgan');
 let cookieParser = require('cookie-parser');
+const bcrypt = require('bcrypt');
 
 const app = express();
 const PORT = 8080;
@@ -17,16 +18,17 @@ const urlDatabase = {
   i3BoGr: { longURL: "https://www.google.ca", userID: "spongebob" }
 };
 
+// example testing userDb don't have actual hashed pass
 const users = {
   "spongebob": {
     id: "spongebob",
     email: "pineapple@underthesea.com",
-    password: "yellow"
+    hashedPassword: "yellow"
   },
   "user2RandomID": {
     id: "user2RandomID",
     email: "snacks@latenight.com",
-    password: "cookies"
+    hashedPassword: "cookies"
   }
 
 };
@@ -65,7 +67,8 @@ const getUser = function(mail, pass) {
   }
   for (const user in users) {
     if (users[user].email === mail) {
-      if (users[user].password === pass) {
+      // console.log(`results from the bcrypt check ${bcrypt.compareSync(pass, users[user].password)}`);
+      if (bcrypt.compareSync(pass, users[user].hashedPassword)) {
         return users[user].id;
       }
     }
@@ -143,12 +146,13 @@ app.post("/urls/register", (req, res) => {
   let id = generateRandomString();
   let email = req.body.email;
   let password = req.body.password;
+  let hashedPassword = bcrypt.hashSync(password, 10);
 
-  if (notValidReg(email, password)) {
+  if (notValidReg(email, hashedPassword)) {
     res.sendStatus(400);
     return;
   }
-  users[id] = {id, email, password};
+  users[id] = {id, email, hashedPassword};
   res.cookie("user_id", id);
 
   console.log(`the cookie should be ${id} and peek at users object`);
