@@ -23,4 +23,18 @@ describe('getUserByEmail', function() {
     
     assert.equal(user.id, expectedOutput);
   });
+  it('should return undefined with email not in database', function() {
+    users = {...testUsers};
+    const user = getUserByEmail("pineapple@example.com", users)
+    const expectedOutput = undefined;
+    
+    assert.equal(user, expectedOutput);
+  });
+  it('should return undefined with blank email', function() {
+    users = {...testUsers};
+    const user = getUserByEmail("", users)
+    const expectedOutput = undefined;
+    
+    assert.equal(user, expectedOutput);
+  });
 });

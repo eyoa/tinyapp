@@ -2,7 +2,7 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const morgan = require('morgan');
-let cookieSession = require('cookie-session')
+let cookieSession = require('cookie-session');
 const bcrypt = require('bcrypt');
 
 // require helper functions
@@ -14,10 +14,9 @@ const PORT = 8080;
 app.set("view engine", "ejs");
 app.use(morgan('dev'));
 app.use(bodyParser.urlencoded({extended: true}));
-// app.use(cookieParser());
 app.use(cookieSession({
   name: 'session',
-  keys: ['key1', 'key2']  
+  keys: ['key1', 'key2', 'hawaiian', 'pizza', 'donuts']
 }));
 
 const urlDatabase = {
@@ -59,11 +58,13 @@ const notValidReg = function(newMail, pass) {
   if (!newMail || !pass) {
     return true;
   }
-  for (let user in users) {
-    if (users[user]["email"] === newMail) {
-      return true;
-    }
+  
+  console.log(`getUserBy email is returning ${getUserByEmail(newMail, users)}`);
+  if (getUserByEmail(newMail, users)) {
+    console.log("user exists");
+    return true;
   }
+  console.log("returning true");
   return false;
 };
 
@@ -74,7 +75,6 @@ const getUser = function(mail, pass) {
   }
   for (const user in users) {
     if (users[user].email === mail) {
-      // console.log(`results from the bcrypt check ${bcrypt.compareSync(pass, users[user].password)}`);
       if (bcrypt.compareSync(pass, users[user].hashedPassword)) {
         return users[user].id;
       }
@@ -104,6 +104,17 @@ const isOwnURL = function(cookieID, urlID) {
   }
 };
 
+const isURLDb = function(shortURL) {
+  if (!shortURL) {
+    return false;
+  }
+  for (const entry in urlDatabase) {
+    if (entry === shortURL) {
+      return true;
+    }
+  }
+  return false;
+};
 
 
 
@@ -111,26 +122,33 @@ const isOwnURL = function(cookieID, urlID) {
 
 // route for Home page
 app.get("/", (req, res) => {
-  res.send("Hello~! Welcome ");
+  if (!req.session.user_id) {
+    res.redirect('/urls/login');
+  }
+  res.redirect('/urls');
 });
 
 // route for list of urls (belonging to specific user)
 app.get("/urls", (req, res) => {
-  let msg = '';
+  let error = null;
   //If not logged in display message to log in or register
   if (!req.session.user_id) {
-    msg = "Please login";
+    error = "Please login";
   }
-  let test = urlsForUser(req.session.user_id);
-  const templateVars = {urls: test, "user": users[req.session.user_id], msg: msg};
+  let selectUrls = urlsForUser(req.session.user_id);
+  const templateVars = {urls: selectUrls, "user": users[req.session.user_id], error};
   res.render("urls_index", templateVars);
 });
 
 
 // route to page that can create new tiny URLS
 app.get("/urls/new", (req, res) =>{
+  let error = null;
+  if (!req.session.user_id) {
+    error = "Please login";
+  }
   if (req.session.user_id) {
-    const templateVars = {"user": users[req.session.user_id]};
+    const templateVars = {"user": users[req.session.user_id], error};
     res.render("urls_new", templateVars);
     return;
   }
@@ -147,20 +165,28 @@ app.post("/urls", (req, res) => {
 });
 
 // route shows the page to register new user
+let error = null;
 app.get("/urls/register", (req, res) => {
-  const templateVars = {"user": users[req.session.user_id]};
-  res.render('urls_register', templateVars);
+  if (!req.session.user_id) {
+    const templateVars = {"user": users[req.session.user_id], error};
+    res.render('urls_register', templateVars);
+    return;
+  }
+  res.redirect('/urls');
 });
 
 // route that registers new user
 app.post("/urls/register", (req, res) => {
+
   let id = generateRandomString();
   let email = req.body.email;
   let password = req.body.password;
   let hashedPassword = bcrypt.hashSync(password, 10);
 
   if (notValidReg(email, hashedPassword)) {
-    res.sendStatus(400);
+    error = "Cannot register this email and password";
+    const templateVars = {"user": users[req.session.user_id], error};
+    res.render("urls_register", templateVars);
     return;
   }
   users[id] = {id, email, hashedPassword};
@@ -174,15 +200,20 @@ app.post("/urls/register", (req, res) => {
 
 // route that shows the page to log in
 app.get("/urls/login", (req, res) => {
-  const templateVars = {"user": users[req.session.user_id]};
-  res.render("urls_login", templateVars);
+  if (!req.session.user_id) {
+    let error = null;
+    const templateVars = {"user": users[req.session.user_id], error};
+    res.render("urls_login", templateVars);
+    return;
+  }
+  res.redirect('/urls');
 });
 
 // route that checks and processes the login and sets cookie
 app.post("/urls/login", (req, res) => {
   console.log(` peek at users object`);
   console.log(users);
-
+  let error = null;
   let email = req.body.email;
   let pass = req.body.password;
   let isUser = getUser(email, pass);
@@ -192,28 +223,47 @@ app.post("/urls/login", (req, res) => {
     req.session.user_id = isUser;
     res.redirect('/urls');
     return;
+  } else {
+    error = "Incorrect credentials";
+    const templateVars = {"user": users[req.session.user_id], error};
+    res.render("urls_login", templateVars);
+  
   }
-  res.sendStatus(403);
+
 });
 
 // route that redirects using the short url to the long url
 app.get("/u/:shortURL", (req, res) => {
-  const longURL = urlDatabase[req.params.shortURL].longURL;
-  res.redirect(longURL);
+  if (isURLDb(req.params.shortURL)) {
+    let longURL = urlDatabase[req.params.shortURL].longURL;
+    res.redirect(longURL);
+    return;
+  } else {
+    let error = "Short URL doesn't exist";
+    const templateVars = {"user": users[req.session.user_id], error};
+    res.render('urls_index', templateVars);
+  }
 });
 
 // route to edit URLS page/ shows the details of one URL
 app.get("/urls/:shortURL", (req, res) => {
-  let msg = '';
+  let error = null;
+  let shortURL = req.params.shortURL;
+  let longURL = '';
   if (!req.session.user_id) {
-    msg = "Please login";
+    error = "Please login";
+  } else if (!isURLDb(shortURL)) {   //case there is no such short URL
+    error = "Invalid short URL";
+  } else if (!isOwnURL(req.session.user_id, req.params.shortURL)) {   // case the short URL belongs to another user
+    error = "This URL has a different owner";
+  } else {
+    longURL = urlDatabase[req.params.shortURL].longURL;
   }
-
   const templateVars = {
     shortURL: req.params.shortURL,
-    longURL: urlDatabase[req.params.shortURL].longURL,
+    longURL: longURL,
     "user": users[req.session.user_id],
-    msg: msg
+    error
   };
   res.render("urls_show", templateVars);
 });
@@ -232,9 +282,18 @@ app.post("/urls/:shortURL", (req, res) => {
 
 // route to remove URL entries  (only the specific user can delete)
 app.post("/urls/:shortURL/delete", (req, res) => {
+  let error = null;
   //if the cookie matches the userID
   if (isOwnURL(req.session.user_id, req.params.shortURL)) {
     delete urlDatabase[req.params.shortURL];
+  } else {
+    error = "Not authorized to delete URL"
+    if (!req.session.user_id){
+      error = "Please login";
+    }
+    const templateVars = {"user": users[req.session.user_id], error};
+    res.render('urls_index', templateVars);
+    return;
   }
   res.redirect(`/urls/`);
 

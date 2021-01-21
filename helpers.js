@@ -1,6 +1,8 @@
+// returns user Object when passed an email and database.
+// returns undefined if either is blank or there is no matching entry
 const getUserByEmail = function(email, database){
   if (!email || !database){
-    return false;
+    return undefined;
   }
   
   for(const entry in database){
@@ -8,7 +10,7 @@ const getUserByEmail = function(email, database){
       return database[entry];
     }
   }  
-  return user;
+  return undefined;
 }
 
 module.exports = {getUserByEmail};
