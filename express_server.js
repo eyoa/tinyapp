@@ -14,7 +14,8 @@ app.use(cookieParser());
 
 const urlDatabase = {
   b6UTxQ: { longURL: "https://www.tsn.ca", userID: "user2RandomID" },
-  i3BoGr: { longURL: "https://www.google.ca", userID: "spongebob" }
+  i3BoGr: { longURL: "https://www.google.ca", userID: "spongebob" },
+  PgM3djJ:{ longURL: "https://www.example.edu", userID: "spongebob2" }
 };
 
 const users = {
@@ -27,7 +28,13 @@ const users = {
     id: "user2RandomID",
     email: "snacks@latenight.com",
     password: "cookies"
-  }
+  },
+  "spongebob2": {
+    id: "spongebob2",
+    email: "pineapple@undertheC.com",
+    password: "123"
+  },
+
 };
 
 
@@ -71,23 +78,53 @@ const isUser = function(mail, pass) {
   return false;
 };
 
+const urlsForUser = function(id) {
+  const results = {};
+  for (const entry in urlDatabase) {
+    if (urlDatabase[entry].userID === id) {
+      results[entry] = urlDatabase[entry];
+    }
+  }
+  return results;
+};
+
+const isOwnURL = function(cookieID, urlID) {
+  console.log("Is checking is OWN URL ==================================");
+  console.log(`cookieID is ${cookieID}`);
+  console.log(`URLID is ${urlID}`);
+  // console.log(`cookieID is ${cookieID} getting db user info ${urlDatabase[URLID].userID}`);
+  if (!cookieID || !urlID) {
+    console.log("empty entries");
+    return false;
+  } else if (urlDatabase[urlID].userID === cookieID) {
+    console.log("matches");
+    return true;
+  }
+};
+
 
 
 app.get("/", (req, res) => {
-  res.send("Hello~!");
-});
-
-app.get("/urls.json", (req, res) => {
-  res.json(urlDatabase);
+  res.send("Hello~! Welcome ");
 });
 
 app.get("/urls", (req, res) => {
-  const templateVars = {urls: urlDatabase, "user": users[req.cookies["user_id"]]};
+  let msg = '';
+  //If not logged in display message to log in or register
+  if (!req.cookies["user_id"]) {
+    msg = "Please login";
+    console.log("Needs to login");
+    // res.send('Please login or Register');
+    // res.redirect('/urls/login');
+  }
+  let test = urlsForUser(req.cookies["user_id"]);
+  const templateVars = {urls: test, "user": users[req.cookies["user_id"]], msg: msg};
   res.render("urls_index", templateVars);
 });
 
+// route to page that can create new tiny URLS
 app.get("/urls/new", (req, res) =>{
-  if (req.cookies["user_id"]){
+  if (req.cookies["user_id"]) {
     const templateVars = {"user": users[req.cookies["user_id"]]};
     res.render("urls_new", templateVars);
     res.end();
@@ -98,7 +135,8 @@ app.get("/urls/new", (req, res) =>{
 
 app.post("/urls", (req, res) => {
   const newStr = generateRandomString();
-  urlDatabase[newStr] = req.body.longURL;
+  let newUrlObj = {longURL: req.body.longURL, userID: req.cookies["user_id"]};
+  urlDatabase[newStr] = newUrlObj;
   res.redirect(`/urls/${newStr}`);
 });
 
@@ -138,32 +176,61 @@ app.post("/urls/login", (req, res) => {
 });
 
 app.get("/u/:shortURL", (req, res) => {
-  const longURL = urlDatabase[req.params.shortURL];
+  const longURL = urlDatabase[req.params.shortURL].longURL;
   res.redirect(longURL);
 });
 
-
+// route to edit URLS page
 app.get("/urls/:shortURL", (req, res) => {
+  let msg = '';
+  if (!req.cookies["user_id"]) {
+    msg = "Please login";
+  }
+
   const templateVars = {
     shortURL: req.params.shortURL,
-    longURL: urlDatabase[req.params.shortURL],
-    "user": users[req.cookies["user_id"]]
+    longURL: urlDatabase[req.params.shortURL].longURL,
+    "user": users[req.cookies["user_id"]],
+    msg: msg
   };
   res.render("urls_show", templateVars);
+  // let msg = '';
+  // //If not logged in display message to log in or register
+  // if (!req.cookies["user_id"]){
+  //   msg = "Please login"
+  //   console.log("Needs to login");
+  //   // res.send('Please login or Register');
+  //   // res.redirect('/urls/login');
+  // }
+  // let test = urlsForUser(req.cookies["user_id"]);
+  // const templateVars = {urls: test, "user": users[req.cookies["user_id"]], msg: msg};
+  // res.render("urls_index", templateVars);
 });
 
 
+
+// route to edit URLS
 app.post("/urls/:shortURL", (req, res) => {
-  urlDatabase[req.params.shortURL] = req.body.editURL;
+  //if the cookie matches the userID
+  console.log(`Is it getting the short URL? ${req.params.shortURL}`);
+  if (isOwnURL(req.cookies["user_id"], req.params.shortURL)) {
+    urlDatabase[req.params.shortURL].longURL = req.body.editURL;
+  }
+
   res.redirect("/urls");
 });
 
+// route to remoce URL entries
 app.post("/urls/:shortURL/delete", (req, res) => {
-  delete urlDatabase[req.params.shortURL];
+  //if the cookie matches the userID
+  if (isOwnURL(req.cookies["user_id"], req.params.shortURL)) {
+    delete urlDatabase[req.params.shortURL];
+  }
   res.redirect(`/urls/`);
 
 });
 
+//route to logout
 app.post("/logout", (req, res) => {
   res.clearCookie("user_id");
   res.redirect('/urls');
