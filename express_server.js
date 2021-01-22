@@ -2,8 +2,9 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const morgan = require('morgan');
-let cookieSession = require('cookie-session');
+const cookieSession = require('cookie-session');
 const bcrypt = require('bcrypt');
+const methodOverride = require('method-override');
 
 // require helper functions
 const {
@@ -24,6 +25,8 @@ app.use(cookieSession({
   name: 'session',
   keys: ['key1', 'key2', 'hawaiian', 'pizza', 'donuts']
 }));
+app.use(methodOverride('_method'));
+
 
 // Check Const and Let
 
@@ -236,8 +239,8 @@ app.post("/urls/login", (req, res) => {
 });
 
 // route that redirects using the short url to the long url
-app.get("/u/:shortURL", (req, res) => {
-  const shortURL = req.params.shortURL;
+app.get("/u/:id", (req, res) => {
+  const shortURL = req.params.id;
   if (isTinyUrl(shortURL)) {
     const longURL = urlDatabase[shortURL].longURL;
     urlDatabase[shortURL].visits += 1;
@@ -251,9 +254,9 @@ app.get("/u/:shortURL", (req, res) => {
 });
 
 // route to edit URLS page and shows the details of one URL
-app.get("/urls/:shortURL", (req, res) => {
+app.get("/urls/:id", (req, res) => {
   let error = null;
-  const shortURL = req.params.shortURL;
+  const shortURL = req.params.id;
   let longURL = '';
 
   if (!req.session.userId) {
@@ -262,11 +265,11 @@ app.get("/urls/:shortURL", (req, res) => {
   } else if (!isTinyUrl(shortURL)) {            //case there is no such short URL
     error = "Invalid short URL";
 
-  } else if (!isOwnURL(req.session.userId, req.params.shortURL)) {        // case the short URL belongs to another user
+  } else if (!isOwnURL(req.session.userId, shortURL)) {        // case the short URL belongs to another user
     error = "This URL has a different owner";
 
   } else {
-    longURL = urlDatabase[req.params.shortURL].longURL;
+    longURL = urlDatabase[shortURL].longURL;
 
   }
   const templateVars = {
@@ -281,16 +284,21 @@ app.get("/urls/:shortURL", (req, res) => {
 });
 
 // route to process the edit urls (only the specific user can edit)
-app.post("/urls/:shortURL", (req, res) => {
+app.put("/urls/:id", (req, res) => {
   let error = null;
   if (!req.session.userId) {
     error = "Please Login";
-  } else if (!isOwnURL(req.session.userId, req.params.shortURL)) {
+  } else if (!isOwnURL(req.session.userId, req.params.id)) {
     error = "Not Authorized to edit this URL";
   } else {
-    urlDatabase[req.params.shortURL].longURL = req.body.editURL;
-    res.redirect("/urls");
-    return;
+    const longURL = req.body.editURL.trim();
+    if (!longURL) {
+      error = "Cannot update to blank URL";
+    } else {
+      urlDatabase[req.params.id].longURL = longURL;
+      res.redirect("/urls");
+      return;
+    }
   }
 
   const templateVars = {"user": users[req.session.userId], error};
@@ -299,15 +307,14 @@ app.post("/urls/:shortURL", (req, res) => {
 });
 
 // route to remove URL entries  (only the specific user can delete)
-app.post("/urls/:shortURL/delete", (req, res) => {
+app.delete("/urls/:id", (req, res) => {
   let error = null;
-
   if (!req.session.userId) {
     error = "Please Login";
-  } else if (!isOwnURL(req.session.userId, req.params.shortURL)) {
+  } else if (!isOwnURL(req.session.userId, req.params.id)) {
     error = "Not authorized to delete URL";
   } else {
-    delete urlDatabase[req.params.shortURL];
+    delete urlDatabase[req.params.id];
     res.redirect(`/urls/`);
     return;
   }

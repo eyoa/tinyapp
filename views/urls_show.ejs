@@ -31,7 +31,7 @@
         </table>
         <div class="class-header"><h3>Edit</h3></div>
         <div>
-          <form action="/urls/<%= shortURL %>" method="POST">
+          <form method="POST" action="/urls/<%= shortURL %>?_method=PUT">
             <label for="editURL">Edit URL</label>
             <input type="text" name ="editURL" placeholder="<%= longURL %>">
             <button class="btn-outline-primary" type="submit">Update</button>

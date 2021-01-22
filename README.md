@@ -15,8 +15,14 @@ TinyApp is a full stack web application built with Node and Express that allows 
 - EJS
 - bcrypt
 - body-parser
-- cookie-session
-- morgan 
+- cookie-session 
+- method-override
+
+## Dev-Dependencies
+- morgan
+- mocha
+- chai
+- nodemon
 
 ## Getting Started
 
