@@ -34,8 +34,8 @@ app.use(methodOverride('_method'));
 // databases with example users and data
 
 const urlDatabase = {
-  b6UTxQ: { longURL: "https://www.tsn.ca", userID: "user2RandomID", date: '1-20-2021', visits: 0, visitors: [] },
-  i3BoGr: { longURL: "https://www.google.ca", userID: "spongebob", date: '1-20-2021', visits: 0, visitors: [] }
+  b6UTxQ: { longURL: "https://www.tsn.ca", userID: "user2RandomID", date: '1-20-2021', visits: 0, visitors: [], timestamps: [] },
+  i3BoGr: { longURL: "https://www.google.ca", userID: "spongebob", date: '1-20-2021', visits: 0, visitors: [], timestamps: [] }
 };
 
 // To access password for spongebob is test and user2RandomID is cookies
@@ -164,11 +164,13 @@ app.post("/urls", (req, res) => {
   const date = getDate();
   const visits = 0;
   const visitors = [];
+  const timestamps = [];
   urlDatabase[newStr] = {
     longURL,
     date,
     visits,
     visitors,
+    timestamps,
     userID: req.session.userId
   };
   res.redirect(`/urls/${newStr}`);
@@ -267,6 +269,8 @@ app.get("/u/:id", (req, res) => {
     }
 
     const longURL = urlDatabase[shortURL].longURL;
+    const time = String(new Date());
+    urlDatabase[shortURL]["timestamps"].push(time);
     urlDatabase[shortURL].visits += 1;
     res.redirect(longURL);
     return;
@@ -303,8 +307,10 @@ app.get("/urls/:id", (req, res) => {
     date: urlDatabase[shortURL].date,
     visits: urlDatabase[shortURL].visits,
     visitors : urlDatabase[shortURL].visitors,
+    timestamps: urlDatabase[shortURL].timestamps,
     error
   };
+  console.log(`checking what timestamps look like ${urlDatabase[shortURL].timestamps}`);
   res.render("urls_show", templateVars);
 });
 
