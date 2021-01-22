@@ -310,7 +310,6 @@ app.get("/urls/:id", (req, res) => {
     timestamps: urlDatabase[shortURL].timestamps,
     error
   };
-  console.log(`checking what timestamps look like ${urlDatabase[shortURL].timestamps}`);
   res.render("urls_show", templateVars);
 });
 
