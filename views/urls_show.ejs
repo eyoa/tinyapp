@@ -24,10 +24,12 @@
             <td>Created</td>
             <td>TinyURL</td>
             <td>Visits</td>
+            <td>Unique Visitors</td>
           </tr>
           <td><%= date%></td>
           <td><a href="/u/<%= shortURL %>"><%= shortURL %></td>
           <td><%= visits%></td>
+          <td><%= visitors.length%></td>
         </table>
         <div class="class-header"><h3>Edit</h3></div>
         <div>

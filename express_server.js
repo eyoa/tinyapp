@@ -34,8 +34,8 @@ app.use(methodOverride('_method'));
 // databases with example users and data
 
 const urlDatabase = {
-  b6UTxQ: { longURL: "https://www.tsn.ca", userID: "user2RandomID", date: '1-20-2021', visits: 0 },
-  i3BoGr: { longURL: "https://www.google.ca", userID: "spongebob", date: '1-20-2021', visits: 0 }
+  b6UTxQ: { longURL: "https://www.tsn.ca", userID: "user2RandomID", date: '1-20-2021', visits: 0, visitors: [] },
+  i3BoGr: { longURL: "https://www.google.ca", userID: "spongebob", date: '1-20-2021', visits: 0, visitors: [] }
 };
 
 // To access password for spongebob is test and user2RandomID is cookies
@@ -163,10 +163,12 @@ app.post("/urls", (req, res) => {
   const newStr = generateRandomString();
   const date = getDate();
   const visits = 0;
+  const visitors = [];
   urlDatabase[newStr] = {
     longURL,
     date,
     visits,
+    visitors,
     userID: req.session.userId
   };
   res.redirect(`/urls/${newStr}`);
@@ -238,10 +240,32 @@ app.post("/urls/login", (req, res) => {
 
 });
 
+// checkes if visitorID is unique and returns boolean value. Will add new unique visitor.
+const isUniqueVisitor = function(shortURL, visitorId) {
+  let visitorList = urlDatabase[shortURL].visitors;
+  for (const id of visitorList) {
+    if (id === visitorId) {
+      return false;
+    }
+  }
+  urlDatabase[shortURL].visitors.push(visitorId);
+  return true;
+};
+
+
 // route that redirects using the short url to the long url
 app.get("/u/:id", (req, res) => {
   const shortURL = req.params.id;
+
   if (isTinyUrl(shortURL)) {
+    // log a unique vistor id cookie for analytics
+    if (!req.session.visitor) {
+      req.session.visitor = generateRandomString();
+    } else {
+      const visitorId = req.session.visitor;
+      isUniqueVisitor(shortURL, visitorId);
+    }
+
     const longURL = urlDatabase[shortURL].longURL;
     urlDatabase[shortURL].visits += 1;
     res.redirect(longURL);
@@ -273,11 +297,12 @@ app.get("/urls/:id", (req, res) => {
 
   }
   const templateVars = {
+    shortURL,
+    longURL,
     "user": users[req.session.userId],
     date: urlDatabase[shortURL].date,
     visits: urlDatabase[shortURL].visits,
-    shortURL,
-    longURL,
+    visitors : urlDatabase[shortURL].visitors,
     error
   };
   res.render("urls_show", templateVars);
