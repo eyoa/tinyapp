@@ -28,7 +28,7 @@ const isValidReg = function(newMail, pass, users) {
 const generateRandomString = function() {
   const result = [];
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyz';
-  const numChars = 6 + 1;
+  const numChars = 7;
   for (let i = 0; i < numChars; i++) {
     const c = Math.floor(Math.random() * 61);
     result.push(chars[c]);

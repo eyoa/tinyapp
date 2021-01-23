@@ -103,7 +103,7 @@ const isTinyUrl = function(shortURL) {
 // route for Home page if user logged in redirects to urls, if not redirects to login page
 app.get("/", (req, res) => {
   if (!req.session.userId) {
-    res.redirect('/urls/login');
+    res.redirect('/login');
     return;
   }
   res.redirect('/urls');
@@ -130,7 +130,7 @@ app.get("/urls", (req, res) => {
 app.get("/urls/new", (req, res) =>{
   
   if (!req.session.userId) {
-    res.redirect('/urls/login');
+    res.redirect('/login');
   }
 
   if (req.session.userId) {
@@ -177,7 +177,7 @@ app.post("/urls", (req, res) => {
 });
 
 // route shows the page to register new user
-app.get("/urls/register", (req, res) => {
+app.get("/register", (req, res) => {
   let error = null;
   if (!req.session.userId) {
     const templateVars = {"user": users[req.session.userId], error};
@@ -188,7 +188,7 @@ app.get("/urls/register", (req, res) => {
 });
 
 // route that registers new user
-app.post("/urls/register", (req, res) => {
+app.post("/register", (req, res) => {
   let error = null;
   const id = generateRandomString();
   const {email, password} = req.body;
@@ -213,7 +213,7 @@ app.post("/urls/register", (req, res) => {
 });
 
 // route that shows the page to log in
-app.get("/urls/login", (req, res) => {
+app.get("/login", (req, res) => {
   if (!req.session.userId) {
     const error = null;
     const templateVars = {"user": users[req.session.userId], error};
@@ -224,7 +224,7 @@ app.get("/urls/login", (req, res) => {
 });
 
 // route that checks and processes the login and sets cookie
-app.post("/urls/login", (req, res) => {
+app.post("/login", (req, res) => {
   let error = null;
   const {email, password} = req.body;
   const isUser = getUser(email, password);
@@ -286,31 +286,36 @@ app.get("/urls/:id", (req, res) => {
   let error = null;
   const shortURL = req.params.id;
   let longURL = '';
+  let templateVars = {};
 
-  if (!req.session.userId) {
-    error = "Please login";
+  if (isTinyUrl(shortURL)) {
+      
+    if (!req.session.userId) {
+      error = "Please login";
 
-  } else if (!isTinyUrl(shortURL)) {            //case there is no such short URL
-    error = "Invalid short URL";
+    } else if (!isOwnURL(req.session.userId, shortURL)) {        // case the short URL belongs to another user
+      error = "This URL has a different owner";
 
-  } else if (!isOwnURL(req.session.userId, shortURL)) {        // case the short URL belongs to another user
-    error = "This URL has a different owner";
-
+    } else {
+      longURL = urlDatabase[shortURL].longURL;
+      templateVars = {
+        shortURL,
+        longURL,
+        "user": users[req.session.userId],
+        date: urlDatabase[shortURL].date,
+        visits: urlDatabase[shortURL].visits,
+        visitors : urlDatabase[shortURL].visitors,
+        timestamps: urlDatabase[shortURL].timestamps,
+        error
+      };
+      res.render("urls_show", templateVars);
+      return;
+    }
   } else {
-    longURL = urlDatabase[shortURL].longURL;
-
+    error = "Short URL doesn't exist";
+    templateVars = {"user": users[req.session.userId], error};
+    res.render("urls_index", templateVars);
   }
-  const templateVars = {
-    shortURL,
-    longURL,
-    "user": users[req.session.userId],
-    date: urlDatabase[shortURL].date,
-    visits: urlDatabase[shortURL].visits,
-    visitors : urlDatabase[shortURL].visitors,
-    timestamps: urlDatabase[shortURL].timestamps,
-    error
-  };
-  res.render("urls_show", templateVars);
 });
 
 // route to process the edit urls (only the specific user can edit)
