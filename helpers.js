@@ -1,3 +1,5 @@
+const bcrypt = require('bcrypt');
+
 // returns user Object when passed an email and database.
 // returns undefined if either is blank or there is no matching entry
 const getUserByEmail = function(email, database) {
@@ -42,10 +44,71 @@ const getDate = function() {
   return `${date.getMonth() + 1}-${date.getDate()}-${date.getFullYear()}`;
 };
 
+// checks if the a URL object belongs to the current user
+const isOwnURL = function(cookieID, urlID, urlDatabase) {
+  return (!cookieID || !urlID) ? false
+    : (urlDatabase[urlID].userID === cookieID) ? true
+      : false;
+};
+
+// checks for user authentication returns user id if valid
+const getUser = function(mail, pass, users) {
+  if (!mail || !pass) {
+    return false;
+  }
+  const user = getUserByEmail(mail, users);
+  if (user) {
+    if (bcrypt.compareSync(pass, user.hashedPassword)) {
+      return user.id;
+    }
+  }
+  return false;
+};
+
+// returns object of URL objects that belong to the specific user
+const getOwnURLs = function(id, urlDatabase) {
+  const results = {};
+  for (const entry in urlDatabase) {
+    if (urlDatabase[entry].userID === id) {
+      results[entry] = urlDatabase[entry];
+    }
+  }
+  return results;
+};
+
+// Checks if short url exists in database
+const isTinyUrl = function(shortURL, urlDatabase) {
+  if (!shortURL) {
+    return false;
+  }
+  for (const entry in urlDatabase) {
+    if (entry === shortURL) {
+      return true;
+    }
+  }
+  return false;
+};
+
+// checkes if visitorID is unique and returns boolean value. Will add new unique visitor.
+const isUniqueVisitor = function(shortURL, visitorId, urlDatabase) {
+  let visitorList = urlDatabase[shortURL].visitors;
+  for (const id of visitorList) {
+    if (id === visitorId) {
+      return false;
+    }
+  }
+  urlDatabase[shortURL].visitors.push(visitorId);
+  return true;
+};
+
 
 module.exports = {
-  getUserByEmail,
   generateRandomString,
   getDate,
-  isValidReg
+  isValidReg,
+  isOwnURL,
+  getUser,
+  getOwnURLs,
+  isTinyUrl,
+  isUniqueVisitor
 };

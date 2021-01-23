@@ -8,10 +8,14 @@ const methodOverride = require('method-override');
 
 // require helper functions
 const {
-  getUserByEmail,
   isValidReg,
   generateRandomString,
-  getDate
+  getDate,
+  isOwnURL,
+  getUser,
+  getOwnURLs,
+  isTinyUrl,
+  isUniqueVisitor
 } = require('./helpers');
 
 
@@ -26,9 +30,6 @@ app.use(cookieSession({
   keys: ['key1', 'key2', 'hawaiian', 'pizza', 'donuts']
 }));
 app.use(methodOverride('_method'));
-
-
-// Check Const and Let
 
 
 // databases with example users and data
@@ -53,53 +54,6 @@ const users = {
 
 };
 
-// Section of helper functions kept here because they require access to databases
-
-// checks for user authentication returns user id if valid
-const getUser = function(mail, pass) {
-  if (!mail || !pass) {
-    return false;
-  }
-  const user = getUserByEmail(mail, users);
-  if (user) {
-    if (bcrypt.compareSync(pass, user.hashedPassword)) {
-      return user.id;
-    }
-  }
-  return false;
-};
-
-// returns object of URL objects that belong to the specific user
-const getOwnURLs = function(id) {
-  const results = {};
-  for (const entry in urlDatabase) {
-    if (urlDatabase[entry].userID === id) {
-      results[entry] = urlDatabase[entry];
-    }
-  }
-  return results;
-};
-
-// checks if the a URL object belongs to the current user
-const isOwnURL = function(cookieID, urlID) {
-  return (!cookieID || !urlID) ? false
-    : (urlDatabase[urlID].userID === cookieID) ? true
-      : false;
-};
-
-// Checks if short url exists in database
-const isTinyUrl = function(shortURL) {
-  if (!shortURL) {
-    return false;
-  }
-  for (const entry in urlDatabase) {
-    if (entry === shortURL) {
-      return true;
-    }
-  }
-  return false;
-};
-
 // route for Home page if user logged in redirects to urls, if not redirects to login page
 app.get("/", (req, res) => {
   if (!req.session.userId) {
@@ -118,7 +72,7 @@ app.get("/urls", (req, res) => {
     error = "Please login";
   }
   const templateVars = {
-    urls: getOwnURLs(req.session.userId),
+    urls: getOwnURLs(req.session.userId, urlDatabase),
     "user": users[req.session.userId],
     error
   };
@@ -227,7 +181,7 @@ app.get("/login", (req, res) => {
 app.post("/login", (req, res) => {
   let error = null;
   const {email, password} = req.body;
-  const isUser = getUser(email, password);
+  const isUser = getUser(email, password, users);
 
   if (isUser) {
     req.session.userId = isUser;
@@ -242,30 +196,17 @@ app.post("/login", (req, res) => {
 
 });
 
-// checkes if visitorID is unique and returns boolean value. Will add new unique visitor.
-const isUniqueVisitor = function(shortURL, visitorId) {
-  let visitorList = urlDatabase[shortURL].visitors;
-  for (const id of visitorList) {
-    if (id === visitorId) {
-      return false;
-    }
-  }
-  urlDatabase[shortURL].visitors.push(visitorId);
-  return true;
-};
-
-
 // route that redirects using the short url to the long url
 app.get("/u/:id", (req, res) => {
   const shortURL = req.params.id;
 
-  if (isTinyUrl(shortURL)) {
+  if (isTinyUrl(shortURL, urlDatabase)) {
     // log a unique vistor id cookie for analytics
     if (!req.session.visitor) {
       req.session.visitor = generateRandomString();
     } else {
       const visitorId = req.session.visitor;
-      isUniqueVisitor(shortURL, visitorId);
+      isUniqueVisitor(shortURL, visitorId, urlDatabase);
     }
 
     const longURL = urlDatabase[shortURL].longURL;
@@ -288,12 +229,12 @@ app.get("/urls/:id", (req, res) => {
   let longURL = '';
   let templateVars = {};
 
-  if (isTinyUrl(shortURL)) {
+  if (isTinyUrl(shortURL, urlDatabase)) {
       
     if (!req.session.userId) {
       error = "Please login";
 
-    } else if (!isOwnURL(req.session.userId, shortURL)) {        // case the short URL belongs to another user
+    } else if (!isOwnURL(req.session.userId, shortURL, urlDatabase)) {        // case the short URL belongs to another user
       error = "This URL has a different owner";
 
     } else {
@@ -323,7 +264,7 @@ app.put("/urls/:id", (req, res) => {
   let error = null;
   if (!req.session.userId) {
     error = "Please Login";
-  } else if (!isOwnURL(req.session.userId, req.params.id)) {
+  } else if (!isOwnURL(req.session.userId, req.params.id, urlDatabase)) {
     error = "Not Authorized to edit this URL";
   } else {
     const longURL = req.body.editURL.trim();
@@ -346,7 +287,7 @@ app.delete("/urls/:id", (req, res) => {
   let error = null;
   if (!req.session.userId) {
     error = "Please Login";
-  } else if (!isOwnURL(req.session.userId, req.params.id)) {
+  } else if (!isOwnURL(req.session.userId, req.params.id, urlDatabase)) {
     error = "Not authorized to delete URL";
   } else {
     delete urlDatabase[req.params.id];
